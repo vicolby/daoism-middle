@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.5.12;
+import "./BToken.sol";
 
-
-/// @title Voting with delegation.
 contract Ballot {
     // This declares a new complex type which will
     // be used for variables later.
     // It will represent a single voter.
     struct Voter {
-        uint weight; // weight is accumulated by delegation
+        uint weight; // weight is accumulated by balancer pool token balance
         bool voted;  // if true, that person already voted
         address delegate; // person delegated to
         uint vote;   // index of the voted proposal
@@ -21,6 +20,7 @@ contract Ballot {
     }
 
     address public chairperson;
+    address public btoken;
 
     // This declares a state variable that
     // stores a `Voter` struct for each possible address.
@@ -30,9 +30,10 @@ contract Ballot {
     Proposal[] public proposals;
 
     /// Create a new ballot to choose one of `proposalNames`.
-    constructor(bytes32[] memory proposalNames) public {
+    constructor(bytes32[] memory proposalNames, address _btoken) public {
         chairperson = msg.sender;
-        voters[chairperson].weight = 1;
+        btoken = _btoken;
+        voters[chairperson].weight = BToken(_btoken).balanceOf(chairperson);
 
         // For each of the provided proposal names,
         // create a new proposal object and add it
@@ -116,6 +117,7 @@ contract Ballot {
     /// to proposal `proposals[proposal].name`.
     function vote(uint proposal) public {
         Voter storage sender = voters[msg.sender];
+        sender.weight = BToken(btoken).balanceOf(msg.sender);
         require(sender.weight != 0, "Has no right to vote");
         require(!sender.voted, "Already voted.");
         sender.voted = true;
